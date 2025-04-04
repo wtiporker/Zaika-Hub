@@ -1,0 +1,89 @@
+local Players = game:GetService("Players")
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local root = char:WaitForChild("HumanoidRootPart")
+
+
+local Window = Fluent:CreateWindow({
+    Title = "Zaika Hub",
+    SubTitle = "by wtiporker",
+    TabWidth = 200,
+    Size = UDim2.fromOffset(500, 350),
+    Theme = "Dark",
+    Acrylic = true,
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "zap" })
+}
+
+
+local isRunning = false
+
+
+local function runAutoProgress()
+    while true do
+        if isRunning then
+            for _, item in pairs(game.Workspace:GetDescendants()) do
+                -- Проверяем, что это ClickDetector и исключаем нежелательные имена
+                if item:IsA("ClickDetector") then
+                    local parentName = item.Parent.Name
+                    if parentName ~= "Door" and 
+                       parentName ~= "Exit" and 
+                       parentName ~= "DoorPart" and 
+                       parentName ~= "DoorMain" then
+                        fireclickdetector(item)
+                    end
+                end
+            end
+        end
+        wait(0.1)
+    end
+end
+
+
+Tabs.Main:AddToggle("AutoProgressToggle", {
+    Title = "Auto Complete",
+    Description = "automatically goes through the chapter (may lag) ",
+    Default = false,
+    Callback = function(value)
+        isRunning = value
+        Fluent:Notify({
+            Title = "Состояние",
+            Content = "d",
+            Duration = 2
+        })
+    end
+})
+
+
+Tabs.Main:AddParagraph({
+    Title = "nothing",
+    Content = ""
+})
+
+-- Настройка SaveManager
+SaveManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetFolder("AutoProgressConfig")
+SaveManager:BuildConfigSection(Tabs.Main)
+
+-- Настройка InterfaceManager
+InterfaceManager:SetLibrary(Fluent)
+InterfaceManager:BuildInterfaceSection(Tabs.Main)
+
+
+Window:SelectTab(1)
+spawn(runAutoProgress)
+
+Fluent:Notify({
+    Title = "loading",
+    Content = "Successfully!",
+    Duration = 3
+})
