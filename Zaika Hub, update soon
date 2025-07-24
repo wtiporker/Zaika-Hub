@@ -1,4 +1,6 @@
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
@@ -6,7 +8,6 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local root = char:WaitForChild("HumanoidRootPart")
-
 
 local Window = Fluent:CreateWindow({
     Title = "Zaika Hub",
@@ -18,20 +19,19 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
-
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "zap" })
 }
 
-
 local isRunning = false
+local isNoclipping = false
+local noclipConnection = nil
 
-
+-- Функция AutoProgress
 local function runAutoProgress()
     while true do
         if isRunning then
             for _, item in pairs(game.Workspace:GetDescendants()) do
-                
                 if item:IsA("ClickDetector") then
                     local parentName = item.Parent.Name
                     if parentName ~= "Door" and 
@@ -47,37 +47,139 @@ local function runAutoProgress()
     end
 end
 
+-- Функция Noclip
+local function toggleNoclip(value)
+    isNoclipping = value
+    if isNoclipping and player.Character then
+        noclipConnection = game:GetService("RunService").Stepped:Connect(function()
+            for _, part in pairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end)
+        Fluent:Notify({
+            Title = "Noclip",
+            Content = "Noclip enabled",
+            Duration = 2
+        })
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+        Fluent:Notify({
+            Title = "Noclip",
+            Content = "Noclip disabled",
+            Duration = 2
+        })
+    end
+end
 
+-- Функция Bang (анимация взаимодействия с другим игроком)
+local function bangPlayer(targetPlayerName)
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -2) -- Позиционируем игрока перед целью
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://148840371" -- ID анимации (пример, замените на нужную)
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local animationTrack = humanoid:LoadAnimation(animation)
+        animationTrack:Play()
+        Fluent:Notify({
+            Title = "Bang",
+            Content = "Banging " .. targetPlayerName,
+            Duration = 3
+        })
+    else
+        Fluent:Notify({
+            Title = "Bang",
+            Content = "Target player not found or invalid",
+            Duration = 3
+        })
+    end
+end
+
+-- Функция Teleport
+local function teleportPlayer(targetPlayerName)
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = targetPlayer.Character.HumanoidRootPart
+        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, -5) -- Телепорт к игроку с отступом
+        Fluent:Notify({
+            Title = "Teleport",
+            Content = "Teleported to " .. targetPlayerName,
+            Duration = 3
+        })
+    else
+        Fluent:Notify({
+            Title = "Teleport",
+            Content = "Target player not found or invalid",
+            Duration = 3
+        })
+    end
+end
+
+-- Тоггл Auto Complete
 Tabs.Main:AddToggle("AutoProgressToggle", {
     Title = "Auto Complete",
     Description = "automatically goes through the chapter (may lag) ",
     Default = false,
     Callback = function(value)
         isRunning = value
-        Fluent:Notify({
-            Title = "Состояние",
-            Content = "d",
-            Duration = 2
-        })
     end
 })
 
+-- Тоггл Noclip
+Tabs.Main:AddToggle("NoclipToggle", {
+    Title = "Noclip",
+    Description = "Allows passing through walls",
+    Default = false,
+    Callback = function(value)
+        toggleNoclip(value)
+    end
+})
+
+-- Поле ввода и кнопка для Bang
+Tabs.Main:AddInput("BangInput", {
+    Title = "Bang Player",
+    Description = "Enter player name to bang",
+    Default = "",
+    Placeholder = "Player name",
+    Callback = function(value)
+        bangPlayer(value)
+    end
+})
+
+-- Поле ввода и кнопка для Teleport
+Tabs.Main:AddInput("TeleportInput", {
+    Title = "Teleport to Player",
+    Description = "Enter player name to teleport to",
+    Default = "",
+    Placeholder = "Player name",
+    Callback = function(value)
+        teleportPlayer(value)
+    end
+})
 
 Tabs.Main:AddParagraph({
     Title = "nothing",
     Content = ""
 })
 
-
 SaveManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetFolder("AutoProgressConfig")
 SaveManager:BuildConfigSection(Tabs.Main)
 
-
 InterfaceManager:SetLibrary(Fluent)
 InterfaceManager:BuildInterfaceSection(Tabs.Main)
-
 
 Window:SelectTab(1)
 spawn(runAutoProgress)
